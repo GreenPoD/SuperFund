@@ -1,0 +1,143 @@
+---
+title: "SuperFund Contaminated Sites"
+date: July 14th 2020
+output: 
+    html_document:
+      theme: yeti
+      highlight: zenburn
+      code_folding: show
+      self_contained: TRUE
+      df_print: paged
+      css: styles.css
+runtime: shiny
+---
+
+```{r setup, load myData, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+load("myData.RData")
+```
+
+#### Superfund Tables
+
+The EPA has been identifying superfund (highly contaminated sites) for many years.
+
+Starting with reviewing the active sites as they relate to the NPL (National Properties List)
+
+201263 is the most promising table containing location and contaminant information
+
+Contaminant of concern data from Superfund decision documents issued in fiscal years 1982-2017. Includes sites 1) final or deleted on the National Priorities List (NPL); and 2) sites with a Superfund Alternative Approach (SAA) Agreement in place. The only sites included that are 1) not on the NPL; 2) proposed for NPL; or 3) removed from proposed NPL, are those with an SAA Agreement in place.
+
+-----
+
+#### Quickstart EDA
+
+```{r, include = TRUE, warning=FALSE, message=FALSE}
+
+# loading libraries
+library(tidyverse)
+library(janitor)
+library(naniar)
+
+#minor cleanup table name and col_names
+active_sites <- X201263_epa_current_NPL %>% 
+  clean_names()
+
+#missing data is always problematic the naniar package is built to quickly identify issues
+gg_miss_var(active_sites, show_pct = TRUE)
+
+#check the types and structure of the data
+glimpse(active_sites)
+
+```
+
+-----
+
+#### Determining an appropriate key
+
+Extracting the unique contaminants is a good start along with the unique sites for visualizing the data. 
+
+There are no values available in the dataset regarding contamination levels and the structure is a long format with multiple contaminants being assigned to the same site.
+ 
+```{r, include=TRUE, warning=FALSE, message=FALSE}
+# tease out the unique contaminants
+unique_contaminants <- 
+  unique(active_sites$contaminant_name) %>% 
+  tibble() 
+# replace the column name that was dropped
+colnames(unique_contaminants) <- c("contaminant_name")
+
+# write the csv file
+write_csv(unique_contaminants, "C:/Users/jerem/Documents/R Projects/SuperFund/table_contaminants.csv")
+
+# create a key for each location by combining the longitude and latitude columns
+unique_sites <- active_sites %>% 
+  mutate(site_id = paste(longitude, latitude, sep = ","))
+
+# create a tibble with the unique id 
+unique_sites <-
+  unique(unique_sites$site_id) %>% 
+  tibble()
+
+# replace the column names that were dropped
+colnames(unique_sites) <- c("site_id")
+
+# split the key column in order to plot the locations on a map
+unique_sites <- unique_sites %>% 
+  separate(col = "site_id", into = c("longitude", "latitude"),sep = ",") %>% 
+  mutate(longitude = as.numeric(longitude), latitude = as.numeric(latitude)) %>% 
+  filter(!is.na(longitude), !is.na(latitude))
+
+# write the csv file
+write_csv(unique_sites, "C:/Users/jerem/Documents/R Projects/SuperFund/unique_site_id.csv")
+
+```
+
+-----
+
+#### Leaflet Plot
+
+I am a visual person, inspiration comes through visualization. I've prepared a leaflet map that shows the locations of the superfund sites. Black points are appropriate for the time being. I will be using the leaflet below in the destined shiny application 
+
+```{r, include=TRUE, warning=FALSE, message=FALSE, fig.align="center"}
+
+library(leaflet)
+library(leaflet.extras)
+
+# OCD column renaming 
+colnames(unique_sites) <- c("lng", "lat")
+
+# prepare the static leaflet map
+lmap <- leaflet(data = unique_sites) %>% 
+  addProviderTiles(provider = "Esri.NatGeoWorldMap") %>% 
+  addCircleMarkers(lng = ~lng, lat = ~lat, opacity = 0.5, color = "#000000", radius = 2) %>% 
+  setView(lng = -97.909299, lat = 36.395046, zoom = 4) %>% 
+  addResetMapButton() %>% 
+  addSearchGoogle()
+# calling the map
+lmap
+
+```
+
+-----
+
+#### Data Cleaning (Ongoing)
+
+Constructing a coherent plan for classifying the data begins with identifying the information from the existing data.
+
+Checking the boxes (What we do know)
+
+1. Location (Y)
+2. Contaminant (Y)
+3. Type of Material Contaminated (Y)
+4. Active Sites (Y) *on the NPL list*
+
+What we don't know
+
+1. Health Affects (N) *exploring EPA database for contaminants*, *pubchem JSON files*
+  *How to classify health affects (Carcinogen, Mutating, Long Term)
+2. Level of Contamination (N)
+3. Environmental impact (N) 
+
+-----
+
+Stay Tuned, I'll be documenting the complete process including dead ends

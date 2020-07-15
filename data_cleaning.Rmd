@@ -19,7 +19,7 @@ load("myData.RData")
 
 #### Superfund Tables
 
-The EPA has been identifying superfund (highly contaminated sites) for many years.
+The EPA has been identifying superfund (highly contaminated sites) for many years. 
 
 Starting with reviewing the active sites as they relate to the NPL (National Properties List)
 
@@ -66,9 +66,6 @@ unique_contaminants <-
 # replace the column name that was dropped
 colnames(unique_contaminants) <- c("contaminant_name")
 
-# write the csv file
-write_csv(unique_contaminants, "C:/Users/jerem/Documents/R Projects/SuperFund/table_contaminants.csv")
-
 # create a key for each location by combining the longitude and latitude columns
 unique_sites <- active_sites %>% 
   mutate(site_id = paste(longitude, latitude, sep = ","))
@@ -83,12 +80,9 @@ colnames(unique_sites) <- c("site_id")
 
 # split the key column in order to plot the locations on a map
 unique_sites <- unique_sites %>% 
-  separate(col = "site_id", into = c("longitude", "latitude"),sep = ",") %>% 
-  mutate(longitude = as.numeric(longitude), latitude = as.numeric(latitude)) %>% 
-  filter(!is.na(longitude), !is.na(latitude))
-
-# write the csv file
-write_csv(unique_sites, "C:/Users/jerem/Documents/R Projects/SuperFund/unique_site_id.csv")
+  separate(col = "site_id", into = c("lng", "lat"),sep = ",") %>% 
+  mutate(lng = as.numeric(lng), lat = as.numeric(lat)) %>% 
+  filter(!is.na(lng), !is.na(lat))
 
 ```
 
@@ -102,9 +96,6 @@ I am a visual person, inspiration comes through visualization. I've prepared a l
 
 library(leaflet)
 library(leaflet.extras)
-
-# OCD column renaming 
-colnames(unique_sites) <- c("lng", "lat")
 
 # prepare the static leaflet map
 lmap <- leaflet(data = unique_sites) %>% 

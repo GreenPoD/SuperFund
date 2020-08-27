@@ -12,100 +12,558 @@ output:
 runtime: shiny
 ---
 
-```{r setup, load myData, include=FALSE}
+```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 load("myData.RData")
 ```
 
-#### Superfund Tables
+### Superfund Sites
+
+The EPA has been identifying and managing the cleanup of [Superfund](https://www.epa.gov/superfund) (highly contaminated sites) for 40 years. Prior to the EPA there was no regulatory body that could control polution.
+
+Highly toxic locations where manufacturing by-products have been carelessly introduced into the environment due to inadequate regulations, greed, or disregard for the generational damages to flora, fauna, ourselves and the earths viability to support life. It sickens me to think that we have poisoned the natural world to enrich a small portion of the population. I think of the suffering of all life and the wasteland humanity seems to have embraced in the name of progress since the dark ages.
+
+There are many datasets available on the EPA website, I've chosen to review the active list of National Properties or NPL. [Superfund Data and Reports](https://www.epa.gov/superfund/superfund-data-and-reports)
+
+-----
 
 The EPA has been identifying and managing the cleanup of [Superfund](https://www.epa.gov/superfund) (highly contaminated sites) for 40 years.
-
-Starting with reviewing the active sites as they relate to the NPL (National Properties List)
-
-201263 is the most promising table containing location and contaminant information
 
 Contaminant of concern data from Superfund decision documents issued in fiscal years 1982-2017. Includes sites 1) final or deleted on the National Priorities List (NPL); and 2) sites with a Superfund Alternative Approach (SAA) Agreement in place. The only sites included that are 1) not on the NPL; 2) proposed for NPL; or 3) removed from proposed NPL, are those with an SAA Agreement in place.
 
 -----
 
-#### Quickstart EDA
+I'm interested in putting together a shiny leaflet application based on the unique sites and the more prevalant contaminants.
 
-```{r, include = TRUE, warning=FALSE, message=FALSE}
+-----
 
-# loading libraries
+#### Data Cleaning
+
+```{r, include=TRUE, message=FALSE, warning=FALSE}
 library(tidyverse)
+library(lubridate)
 library(janitor)
-library(naniar)
-
-#minor cleanup table name and col_names
-active_sites <- X201263_epa_current_NPL %>% 
-  clean_names()
-
-#missing data is always problematic the naniar package is built to quickly identify issues
-gg_miss_var(active_sites, show_pct = TRUE)
-
-#check the types and structure of the data
-glimpse(active_sites)
-
-```
-
------
-
-#### Determining an appropriate key
-
-Extracting the unique contaminants is a good start along with the unique sites for visualizing the data. 
-
-There are no values available in the dataset regarding contamination levels and the structure is a long format with multiple contaminants being assigned to the same site.
- 
-```{r, include=TRUE, warning=FALSE, message=FALSE}
-# tease out the unique contaminants
-unique_contaminants <- 
-  unique(active_sites$contaminant_name) %>% 
-  tibble() 
-# replace the column name that was dropped
-colnames(unique_contaminants) <- c("contaminant_name")
-
-# create a key for each location by combining the longitude and latitude columns
-unique_sites <- active_sites %>% 
-  mutate(site_id = paste(longitude, latitude, sep = ","))
-
-# create a tibble with the unique id 
-unique_sites <-
-  unique(unique_sites$site_id) %>% 
-  tibble()
-
-# replace the column names that were dropped
-colnames(unique_sites) <- c("site_id")
-
-# split the key column in order to plot the locations on a map
-unique_sites <- unique_sites %>% 
-  separate(col = "site_id", into = c("lng", "lat"),sep = ",") %>% 
-  mutate(lng = as.numeric(lng), lat = as.numeric(lat)) %>% 
-  filter(!is.na(lng), !is.na(lat))
-
-```
-
------
-
-#### Leaflet Plot
-
-I am a visual person, inspiration comes through visualization. I've prepared a leaflet map that shows the locations of the superfund sites. Black points are appropriate for the time being. I will be using the leaflet below in the destined shiny application 
-
-```{r, include=TRUE, warning=FALSE, message=FALSE, fig.align="center"}
-
+library(tidylo)
 library(leaflet)
 library(leaflet.extras)
 
-# prepare the static leaflet map
-lmap <- leaflet(data = unique_sites) %>% 
-  addProviderTiles(provider = "Esri.NatGeoWorldMap") %>% 
-  addCircleMarkers(lng = ~lng, lat = ~lat, opacity = 0.5, color = "#000000", radius = 2) %>% 
-  setView(lng = -97.909299, lat = 36.395046, zoom = 4) %>% 
-  addResetMapButton() %>% 
-  addSearchGoogle()
-# calling the map
-lmap
+#minor cleanup table name and col_names using the janitor package
+active_sites <- EPA_current_NPL_201263 %>% 
+  clean_names()
+
+active_sites_cln <- active_sites %>% 
+  select(site_name, state, latitude, longitude,
+         fiscal_year, media, contaminant_name) %>% 
+  mutate(site_name = str_to_title(site_name),
+         contaminant_name = str_to_title(contaminant_name),
+         state = as.factor(state)) %>% 
+  arrange(contaminant_name) %>% 
+  mutate(contaminant_name = case_when(
+    contaminant_name %in% c("C13-C18 Aliphatic Hydrocarbons",
+                            "C19-C36 Aliphatic Hydrocarbons",
+                            "C5-C8 Aliphatic Hydrocarbons",
+                            "C9-C12 Aliphatic Hydrocarbons",
+                            "C9-C18 Aliphatic Hydrocarbons") ~ "Chlorinated Aliphatic Hydrocarbons",
+    contaminant_name %in% c("Heptachlorodibenzo[B,E][1,4]Dioxin (Hpcdd) (Mixed Isomers)",
+                            "1,2,3,4,6,7,8-Heptachlorodibenzo[B,E][1,4]Dioxin (Hpcdd)",
+                            "1,2,3,4,6,7,8,9-Octachlorodibenzo[B,E][1,4]Dioxin (Ocdd)",
+                            "1,2,3,4,7,8-Hexachlorodibenzo[B,E][1,4]Dioxin (Hxcdd)",
+                            "1,2,3,6,7,8-Hexachlorodibenzo[B,E][1,4]Dioxin (Hxcdd)",
+                            "2,3,7,8-Tetrachlorodibenzo-P-Dioxin (Tcdd) Toxicity Equivalents (Teq)",
+                            "2,3,7,8-Tetrachlorodibenzo-P-Dioxin (Tcdd)",
+                            "Hexachlorodibenzo[B,E][1,4]Dioxin (Hxcdd) (Mixed Isomers)",
+                            "1,2,3,7,8-Pentachlorodibenzo[B,E][1,4]Dioxin (Pecdd)",
+                            "Pentachlorodibenzo[B,E][1,4]Dioxin (Pecdd) (Mixed Isomers)",
+                            "Tetrachlorodibenzo[B,E][1,4]Dioxin (Tcdd) (Mixed Isomers)",
+                            "Dioxins (Chlorinated Dibenzodioxins)",
+                            "Chlorinated Dioxins And Furans",
+                            "Dioxins And Dibenzofurans") ~ "Chlorobenzo Dioxin",
+    contaminant_name %in% c("1-Methyl-2-Nitrobenzene",
+                            "1-Methyl-3-Nitrobenzene",
+                            "1-Methyl-4-Nitrobenzene") ~ "Methyl-Nitrobenzene", 
+    contaminant_name %in% c("Total Extractable Petroleum Hydrocarbons (Teph)",
+                            "Total Petroleum Hydrocarbon -Diesel",
+                            "Total Petroleum Hydrocarbon -Gasoline",
+                            "Total Petroleum Hydrocarbons (Tph)",
+                            "Total Recoverable Petroleum Hydrocarbons (Trph)") ~ "Petroleum Hydrocarbons",
+    contaminant_name %in% c("P,P'-Dde",
+                            "P,P'-Ddd",
+                            "P,P'-Ddt",
+                            "Ddt And Metabolites") ~ "DDT",
+    contaminant_name %in% c("C11-C22 Aromatic Hydrocarbons",
+                            "C9-C10 Aromatic Hydrocarbons",
+                            "Carcinogenic Polycyclic Aromatic Hydrocarbons (Cpah)",
+                            "Polycyclic Aromatic Hydrocarbons",
+                            "C9-C10 Aromatics",
+                            "Polycyclic Aromatic Hydrocarbons (Pahs)",
+                            "Polycyclic Aromatic Hydrocarbons, High Molecular Weight (Hpahs)",
+                            "Polycyclic Aromatic Hydrocarbons, Low Molecular Weight (Lpahs)") ~ "Aromatic Hydrocarbons",
+    contaminant_name %in% c("1,2-Dimethylbenzene (O-Xylene)",
+                            "1,3-Dimethylbenzene (M-Xylene)",
+                            "1,3 (Or 1,4)-Dimethylbenzene (M (Or P)-Xylene)",
+                            "1,4-Dimethylbenzene (P-Xylene)") ~ "Methylbenzene Xylene",
+    contaminant_name %in% c("1-Chloro-2-Methylbenzene (O-Chlorotoluene)",
+                            "Chloromethylbenzene") ~ "Cloromethylbenzene",
+    contaminant_name %in% c("1,2,3-Trimethylbenzene",
+                            "1,2,4-Trimethylbenzene",
+                            "1,3,5-Trimethylbenzene",
+                            "Trimethylbenzene (Mixed Isomers)") ~ "Trimethylbenzene",
+    contaminant_name %in% c("1,1-Dichloroethane",
+                            "1,1,1-Trichloroethane",
+                            "1,1,1,2-Tetrachloroethane",
+                            "1,1,2-Trichloroethane",
+                            "1,1,2,2-Tetrachloroethane",
+                            "1,2-Dichloroethane",
+                            "Chloroethane",
+                            "Hexachloroethane",
+                            "Pentachloroethane",
+                            "Trichloroethane (Mixed Isomers)") ~ "Chloroethane",
+    contaminant_name %in% c("1,2-Dibromo-3-Chloropropane",
+                            "Dichloropropane1,2-",
+                            "1,2,3-Trichloropropane",
+                            "1,2-Dichloropropane",
+                            "Dichloropropane (Mixed Isomers)") ~ "Chloropropane",
+    contaminant_name %in% c("1,2,3,4-Tetrachlorobenzene",
+                            "1,2-Dichlorobenzene",
+                            "1,2,3-Trichlorobenzene",
+                            "1,2,3,4-Tetrachlorobenzene",
+                            "1,2,4-Trichlorobenzene",
+                            "1,2,4,5-Tetrachlorobenzene",
+                            "1,3-Dichlorobenzene",
+                            "1,3,5-Trichlorobenzene",
+                            "1,4-Dichlorobenzene",
+                            "Chlorobenzene",
+                            "Dichlorobenzene (Mixed Isomers)",
+                            "Hexachlorobenzene",
+                            "Pentachlorobenzene") ~ "Chlorobenzene",
+    contaminant_name %in% c("1,2,3,4,6,7,8,9-Octachlorodibenzofuran",
+                            "1,2,3,4,7,8-Hexachlorodibenzofuran (Hxcdf)",
+                            "1,2,3,6,7,8-Hexachlorodibenzofuran (Hxcdf)",
+                            "1,2,3,7,8-Pentachlorodibenzofuran",
+                            "2,3,4,7,8-Pentachlorodibenzofuran (Pecdf)",
+                            "2,3,7,8-Tetrachlorodibenzofuran",
+                            "Pentachlorodibenzofuran (Pecdf)",
+                            "1,3-Dioxo-1,3-Dihydro-2-Benzofuran-5-Carboxylic Acid",
+                            "Tetrachlorodibenzofuran (Tcdf)",
+                            "2-Benzofuran-1,3-Dione") ~ "Chlorodibenzofuran",
+    contaminant_name %in% c("1,1,2,2-Tetrabromoethane",
+                            "1,2-Dibromoethane") ~ "Bromoethane",
+    contaminant_name %in% c("2-Amino-4,6-Dinitrotoluene",
+                            "2,4-Dinitrotoluene",
+                            "2,4,6-Trinitrotoluene",
+                            "2,6-Dinitrotoluene",
+                            "4-Amino-2,6-Dinitrotoluene",
+                            "Dinitrotoluene (Mixed Isomers)",
+                            "Nitrotoluene (Mixed Isomers)") ~ "Nitrotoluene",
+    contaminant_name %in% c("Cresol (Mixed Isomers)",
+                            "2-Methyl-4,6-Dinitrophenol (4,6-Dinitro-O-Cresol)",
+                            "3-Methylphenol (Mixed Monochlorinated Isomers)",
+                            "2,4-Dimethylphenol",
+                            "4-Chloro-3-Methylphenol",
+                            "2-Methylphenol (O-Cresol)",
+                            "3-Methylphenol (M-Cresol)",
+                            "4-Methylphenol (P-Cresol)") ~ "Cresol",
+    contaminant_name %in% c("1,1-Dichloroethene",
+                            "1,2-Dichloroethene (Cis And Trans Mixture)",
+                            "Chloroethene (Vinyl Chloride)",
+                            "Cis-1,2-Dichloroethene",
+                            "Tetrachloroethene",
+                            "Trans-1,2-Dichloroethene",
+                            "Trichloroethene") ~ "Chloroethene",
+    contaminant_name %in% c("(E)-1,3-Dichloro-1-Propene",                                       
+                            "(Z)-1,3-Dichloro-1-Propene",
+                            "1,3-Dichloropropene (Ez Mixture)",
+                            "3-Chloroprop-1-Ene") ~ "Chloropropene",
+    contaminant_name %in% c("1-Methylnaphthalene",
+                            "2-Methylnaphthalene") ~ "Methylnaphthalene",
+    contaminant_name %in% c("4-Cyano-1,2,3,4-Tetrahydro-Alpha-Methyl-1-Naphthaleneacetonitrile",
+                            "4-Cyano-1,2,3,4-Tetrahydro-1-Naphthalene-Propionitrile" ) ~ "Cyanohydronaphthalene",
+    contaminant_name %in% c("1,1,2-Trichloro-1,2,2-Trifluoroethane",
+                            "1,1,2,2-Tetrachloro-1,2-Difluoroethane",
+                            "1,2-Dichloro-1,1,2,2-Tetrafluoroethane") ~ "Chlorofloroethane",
+    contaminant_name %in% c("2-Chlorophenol",
+                            "2,3,5,6-Tetrachlorophenol",
+                            "2,4-Dichlorophenol",
+                            "2,4,5-Trichlorophenol",
+                            "2,4,6-Trichlorophenol",
+                            "Pentachlorophenol",
+                            "Trichlorophenol (Mixed Isomers)") ~ "Chlorophenol",
+    contaminant_name %in% c("(3r)-1-Azabicyclo[2.2.2]Octan-3-Yl Hydroxy(Diphenyl)Acetate",
+                            "2-Hydroxy-2,2-Diphenylacetic Acid") ~ "Hydroxy Diphenylacetate",
+    contaminant_name %in% c("2-Chloroaniline",
+                            "3-Chloroaniline",
+                            "4-Chloroaniline",
+                            "4,4'-Methylenebis(2-Chloroaniline",
+                            "Chlorophenyl Chloroaniline") ~ "Chloroaniline",
+    contaminant_name %in% c("2-Nitroaniline",
+                            "3-Nitroaniline",
+                            "4-Nitroaniline",
+                            "N-Methyl-N,2,4,6-Tetranitroaniline (Tetryl)") ~ "Nitroaniline",
+    contaminant_name %in% c("3-(3,4-Dichlorophenyl)-1,1-Dimethylurea (Diuron)",    
+                            "3-(4-Chlorophenyl)-1,1-Dimethylurea") ~ "Diuron",
+    contaminant_name %in% c("2,4-Dichlorophenoxyacetic Acid",
+                            "2,4,5-Trichlorophenoxyacetic Acid",
+                            "(4-Chloro-2-Methylphenoxy)Acetic Acid") ~ "Chlorophenoxy Acetic Acid",
+    contaminant_name %in% c("2,4-Dinitrophenol",
+                            "2,4,6-Trinitrophenol",
+                            "2-Nitrophenol",
+                            "4-Nitrophenol") ~ "Nitrophenol",
+    contaminant_name %in% c("2-(2,4-Dichlorophenoxy)Propanoic Acid",
+                            "2-(2,4,5-Trichlorophenoxy)Propanoic Acid") ~ "Chlorophenoxy Propanoic Acid",
+    contaminant_name %in% c("1,3-Dinitrobenzene",
+                            "1,3,5-Trinitrobenzene",
+                            "1,4-Dinitrobenzene",
+                            "Methyl-Nitrobenzene",
+                            "O-Dinitrobenzene") ~ "Nitrobenzene",
+    contaminant_name %in% c("4-(4-Amino-3-Methylphenyl)-2-Methylaniline",
+                            "2-Methylaniline",
+                            "N,N-Dimethylaniline") ~ "Methylaniline",
+    contaminant_name %in% c("4-(4-Amino-3-Chlorophenyl)-2-Chloroaniline",
+                            "4,4'-Methylenebis(2-Chloroaniline)") ~ "Chloroaniline",
+    contaminant_name %in% c("1-Chloro-2-[(2-Chloroethyl)Sulfanyl]Ethane",         
+                            "1-Chloro-2-Ethenoxyethane") ~ "Cloro Ethenoxyethane",
+    contaminant_name %in% c("(2-Methyl-2-Propanyl)Benzene",
+                            "1-Methyl-4-Propan-2-Ylbenzene") ~ "Methylpropanol Benzene",
+    contaminant_name %in% c("2-Methoxy-2-Methylpropane (Mtbe)",
+                            "2-Methyl-2-Propanol",
+                            "2-Methylprop-2-Enenitrile") ~ "Methylpropanol",
+    contaminant_name %in% c("Methylcyclohexanol (Mixed Isomers)",
+                            "3,5,5-Trimethylcyclohex-2-En-1-One") ~ "Methylcyclohexanol",
+    contaminant_name %in% c("(2z)-2-Butenedioic Acid",
+                            "4-(2,4-Dichlorophenoxy)Butanoic Acid") ~ "Butenedioic Acid",
+    contaminant_name %in% c("Methyl 2-Methylprop-2-Enoate",
+                            "Methyl Prop-2-Enoate") ~ "Methyl Prop Enoate",
+    contaminant_name %in% c("2-Chloronaphthalene",
+                            "N,N-Bis(2-Chloroethyl)-2-Naphthalenamine") ~ "Chloronaphthalene",
+    str_detect(contaminant_name, "^Aroclor") ~ "PCB",
+    str_detect(contaminant_name, "^Actinium") ~ "Actinium",
+    str_detect(contaminant_name, "^Aluminum") ~ "Aluminum",
+    str_detect(contaminant_name, "^Arsenic") ~ "Arsenic",
+    str_detect(contaminant_name, "^Barium") ~ "Barium",
+    str_detect(contaminant_name, "^Beryllium") ~ "Beryllium",
+    str_detect(contaminant_name, "^Benzidine") ~ "Benzidine",
+    str_detect(contaminant_name, "^Bromine") ~ "Bromine",
+    str_detect(contaminant_name, "^Cesium") ~ "Cesium",
+    str_detect(contaminant_name, "^Chromium") ~ "Chromium",
+    str_detect(contaminant_name, "^Cobalt") ~ "Cobalt",
+    str_detect(contaminant_name, "^Copper") ~ "Copper",
+    str_detect(contaminant_name, "^Cyanide") ~ "Cyanide",
+    str_detect(contaminant_name, "^Endosulfan") ~ "Endosulfan",
+    str_detect(contaminant_name, "^Endrin") ~ "Endrin",
+    str_detect(contaminant_name, "^Europium") ~ "Europium",
+    str_detect(contaminant_name, "^Iodine") ~ "Iodine",
+    str_detect(contaminant_name, "^Lead") ~ "Lead",
+    str_detect(contaminant_name, "^Manganese") ~ "Manganese",
+    str_detect(contaminant_name, "^Mercury") ~ "Mercury",
+    str_detect(contaminant_name, "^Nickel") ~ "Nickel",
+    str_detect(contaminant_name, "^Nitrate") ~ "Nitrate",
+    str_detect(contaminant_name, "^Nitrophenol") ~ "Nitrophenol",
+    str_detect(contaminant_name, "^Methylnaphthalene") ~ "Methylnapthalene",
+    str_detect(contaminant_name, "^Phosphorus") ~ "Phosphorus",
+    str_detect(contaminant_name, "^Plutonium") ~ "Plutonium", 
+    str_detect(contaminant_name, "^Polonium") ~ "Polonium",
+    str_detect(contaminant_name, "^Polychlorinated Biphenyls") ~ "PCB",
+    str_detect(contaminant_name, "^Radium") ~ "Radium",
+    str_detect(contaminant_name, "^Radon") ~ "Radon",
+    str_detect(contaminant_name, "^Ruthenium") ~ "Ruthenium",
+    str_detect(contaminant_name, "^Strontium") ~ "Strontium",
+    str_detect(contaminant_name, "^Thallium") ~ "Thallium",
+    str_detect(contaminant_name, "^Thorium") ~ "Thorium",
+    str_detect(contaminant_name, "^Uranium") ~ "Uranium",
+    str_detect(contaminant_name, "^Vanadium") ~"Vanadium",
+    contaminant_name == "1,2-Dihydroacenaphthylene" ~ "Acenaphthylene",
+    contaminant_name == "2-Aminopyridine" ~ "Aminopyridine",
+    contaminant_name == "(2z)-2-Butenedioic Acid" ~ "Butenedioic Acid",
+    contaminant_name == "Benzo[A]Pyrene Equivalents (Bapeq)" ~ "Benzo[A]Pyrene",
+    contaminant_name == "1,3-Benzenediol" ~ "Benzenediol",
+    contaminant_name == "1,1'-Biphenyl" ~ "Biphenyl",
+    contaminant_name == "Bis(2-Chloroethoxy) Methane" ~ "Bis Chloroethoxy Methane",
+    contaminant_name == "Bis(2-Chloroethyl)Ether" ~ "Bis Chloroethyl Ether",
+    contaminant_name == "Bis(2-Chloroisopropyl) Ether" ~ "Bis Chloroisopropyl Ether",
+    contaminant_name == "Bis(2-Ethylhexyl) Adipate" ~ "Bis Ethylhexyl Adipate",
+    contaminant_name == "Bis(Chloromethyl) Ether" ~ "Bis Chloromethyl Ether",
+    contaminant_name == "1-Bromo-4-Phenoxybenzene" ~ "Bromophenoxy Benzene",
+    contaminant_name == "Tris(2,3-Dibromopropyl) Phosphate" ~ "Bromopropyl Phosphate",
+    contaminant_name == "1-Butanol (N-Butanol)" ~ "Butanol",
+    contaminant_name == "1,3-Butadiene" ~ "Butadiene", 
+    contaminant_name == "1-Butoxybutane" ~ "Butoxybutane",
+    contaminant_name == "2-Butoxyethanol" ~ "Butoxyethanol",
+    contaminant_name == "2-Butanone (Methyl Ethyl Ketone)" ~ "Butanone Methyl",
+    contaminant_name == "1,3-Butadiene" ~ "1,3-Butadiene",
+    contaminant_name == "Butan-2-Ylbenzene" ~ "Diethylbenzene",
+    contaminant_name == "1(2z)-2-Butenedioic Acid" ~ "Butenedioic Acid",
+    contaminant_name == "9h-Carbazole" ~ "Carbazole",
+    contaminant_name == "Carbonyl Dichloride (Phosgene)" ~ "Carbonyl Dichloride Phosgene",
+    contaminant_name == "1,4-Benzenedicarboxylic Acid" ~ "Benzenedicarboxylic Acid",
+    contaminant_name == "Chlorine (Cl2)" ~ "Chlorine",
+    contaminant_name == "2,2-Dichloroethenyl Dimethyl Phosphate" ~ "Dichloroethenyl Dimethyl Phosphate", 
+    contaminant_name == "1-Chloro-4-Phenoxybenzene" ~ "Chloro Phenoxybenzene",
+    contaminant_name == "2,2,2-Trichloro-1,1-Bis(4-Chlorophenyl)Ethanol" ~ "Chlorophenyl Ethanol",
+    contaminant_name == "4-Methylheptyl 2-(2,4,5-Trichlorophenoxy)Propanoate" ~ "Chlorophenoxy Propanoate",
+    contaminant_name == "1-Bromo-4-Phenoxybenzene" ~ "Bromo Phenoxybenzene",
+    contaminant_name == "10-Chloro-5h-Phenarsazinine" ~ "Chloro Phenarsazinine",
+    contaminant_name == "C.i. Acid Green 3" ~ "Acid Green Colorant",
+    contaminant_name == "C.i. Basic Violet 1" ~ "Basic Violet Colorant",
+    contaminant_name == "Dibenzo(A,H)Anthracene" ~ "Dibenzo[AH]Athracene",
+    contaminant_name == "Dibenz[A,H]Acridine" ~ "Dibenz[AH]Acridine",
+    contaminant_name == "Dibenzo[A,E]Pyrene" ~ "Dibenzo[AE]Pyrene",
+    contaminant_name == "Dibenzo[A,H]Pyrene" ~ "Dibenzo[AH]Pyrene",
+    contaminant_name == "N,N-Dibutylnitrous Amide" ~ "Dibutylnitrous Amide",
+    contaminant_name == "N,N-Diethylnitrous Amide" ~ "Diethylnitrous Amide",
+    contaminant_name == "N,N-Diphenylnitrous Amide" ~ "Diphenylnitrous Amide",
+    contaminant_name == "N,N-Dipropylnitrous Amide" ~ "Dipropylnitrous Amide",
+    contaminant_name == "Dichloro-[(E)-2-Chloroethenyl]Arsane (Lewisite)" ~ "Lewisite",
+    contaminant_name == "Diethylbenzene (Mixed Isomers)" ~ "Diethylbenzene",
+    contaminant_name == "Dichloromethane (Methylene Chloride)" ~ "Methylene Chloride",
+    contaminant_name == "2-(1-Methylpropyl)-4,6-Dinitrophenol (Dinoseb)" ~ "Dinoseb",
+    contaminant_name == "Di-N-Octyl Phthalate" ~ "Dioctyl Phthalate",
+    contaminant_name == "1,4-Dioxane" ~ "Dioxane",
+    contaminant_name == "Dimethyl Phenol (Mixed Isomers)" ~ "Dimethyl Phenol", 
+    contaminant_name == "Diaminotoluene (Mixed Isomers)" ~ "Diaminotoluene",
+    contaminant_name == "1,2-Diphenylhydrazine" ~ "Diphenylhydrazine",
+    contaminant_name == "Total Dissolved Solids" ~ "Dissolved Solids",
+    contaminant_name == "1,4-Dithiane" ~ "Dithiane", 
+    contaminant_name == "Ethane-1,2-Diamine" ~ "Ethane Diamine",
+    contaminant_name == "2-Ethoxyethanol" ~ "Ethoxyethanol",
+    contaminant_name == "Bis(2-Ethylhexyl)Phthalate" ~ "Ethylhexyl Phthalate",
+    contaminant_name == "O-Ethyl O-(4-Nitrophenyl) Phenylphosphonothioate" ~ "Ethyl Nitrophenyl Phosphonothioate",
+    contaminant_name == "S-Ethyl N,N-Dipropylcarbamothioate (Eptc)" ~ "Ethyl Dipropylcarbamothioate",
+    contaminant_name == "Ethyl Prop-2-Enoate" ~ "Ethyl Prop Enoate",
+    contaminant_name == "1,2-Ethanediol (Ethylene Glycol)" ~ "Ethylene Glycol",
+    contaminant_name == "9h-Fluorene" ~ "Fluorene",
+    contaminant_name == "2-Fluoroacetic Acid" ~ "Fluoroacetic Acid",
+    contaminant_name == "Fluorine (F2)" ~ "Fluorine",
+    contaminant_name == "2-[Fluoro(Methyl)Phosphoryl]Oxypropane (Sarin)" ~ "Sarin",
+    contaminant_name == "Gamma-Chlordane" ~ "Gamma Chlordane",
+    contaminant_name == "Gamma-Hexachlorocyclohexane (Lindane)" ~ "Lindane",
+    contaminant_name == "Total Trihalomethanes" ~ "Halomethane",
+    contaminant_name == "Hexahydro-1,3,5-Trinitro-1,3,5-Triazine (Rdx)" ~ "Cyclonite",
+    contaminant_name == "Hydrogen (H2)" ~ "Hydrogen",
+    contaminant_name == "2-Hexanone" ~ "Hexanone", 
+    contaminant_name == "1h-Indene" ~ "Indene",
+    contaminant_name == "Indeno(1,2,3-Cd)Pyrene" ~ "Indeno Pyrene",
+    contaminant_name == "3,6-Dichloro-2-Methoxybenzoic Acid" ~ "Chloro Methoxybenzoic Acid",
+    contaminant_name == "4-Methylchrysene" ~ "Methylchrysene",
+    contaminant_name == "2-Methyloxirane" ~ "Methyloxirane",
+    contaminant_name == "2,2,4-Trimethylpentane" ~ "Methylpentane",
+    contaminant_name == "4-Methyl-2-Pentanone (Methyl Isobutyl Ketone)" ~ "Methylpentanone",
+    contaminant_name == "4,4'-Methylenebis(2-Chloroaniline)" ~ "Methylenebis Chloroaniline",
+    contaminant_name == "4-Methoxyphenol" ~ "Methoxyphenol",
+    contaminant_name == "2-Naphthalenamine" ~ "Naphthalenamine",
+    contaminant_name == "1-Nitrosopyrrolidine" ~ "Nitrosopyrrolidine",
+    contaminant_name == "4-Nitrosodiphenylamine" ~ "Nitrosodiphenylamine",
+    contaminant_name == "N-Nitrosodimethylamine" ~ "Nitrosodimethylamine",
+    contaminant_name == "2,2',2''-Nitrilotriethanol" ~ "Nitrilotriethanol",
+    contaminant_name == "O-Ethyl S,S-Dipropyl Phosphorodithioate (Ethoprop)" ~ "Ethoprop",
+    contaminant_name == "O,O,O,O-Tetraethyl Dithiodiphosphate" ~ "Sulfotep",
+    contaminant_name == "Oil & Grease" ~ "Oil and Grease",
+    contaminant_name == "2,2'-Oxydiethanol" ~ "Oxydiethanol", 
+    contaminant_name == "2-Propan-2-Yloxypropane" ~ "Oxypropane",
+    contaminant_name == "Organic & Inorganic Liquid Sludge" ~ "Liquid Sludge",
+    contaminant_name == "P-Cymene" ~ "P Cymene",
+    contaminant_name == "Pentaerythritol Tetranitrate (Petn)" ~ "Pentaerythritol Tetranitrate",
+    contaminant_name == "Perfluorooctanoic Acid (Pfoa)" ~ "Perfluorooctane Sulfonic Acid",
+    contaminant_name == "10h-Phenothiazine" ~ "Phenothiazine",
+    contaminant_name == "Polybrominated Biphenyls (Firemaster Ff 1)" ~ "Polybrominated Biphenyls",
+    contaminant_name == "1-Phenylethanone" ~ "Phenylethanone",
+    contaminant_name == "2-Chloro-1-Phenylethanone" ~ "Chloro Phenylethanone", 
+    contaminant_name == "4-Phenylaniline" ~ "Phenylaniline",
+    contaminant_name == "Promethium-147" ~"Promethium",
+    contaminant_name == "2-Propanol" ~ "Propanol",
+    contaminant_name == "1,2-Propanediol" ~ "Propanediol", 
+    contaminant_name == "[(E)-Prop-1-Enyl]Benzene" ~ "Propenyl Benzene",
+    contaminant_name == "1-Propene" ~ "Propene",
+    contaminant_name == "2-Propenenitrile (Acrylonitrile)" ~ "Acrylonitrile",
+    contaminant_name == "Residual Range Organics (Rro)" ~ "Residual Range Organics",
+    contaminant_name == "Semi-Volatile Organic Compounds (Svoc)" ~ "Semi Volatile Organic Compounds",
+    contaminant_name == "Silicon Dioxide (Amorphous Silica)" ~ "Silicon Dioxide",
+    contaminant_name == "Sodium Nitrite" ~ "Sodium Nitrate",
+    contaminant_name == "Sodium-22" ~ "Sodium",
+    contaminant_name == "1,3,5,7-Tetranitro-1,3,5,7-Tetrazocane (Hmx)" ~ "Octogen",
+    contaminant_name == "Total Suspended Solids (Tss)" ~ "Suspended Solids",
+    contaminant_name == "Toluene Diisocyanate (Mixed Isomers)" ~ "Toluene Diisocyanate",
+    contaminant_name == "Total Benzofluoranthenes" ~ "Benzofluoranthene",
+    contaminant_name == "Total Dissolved Solids (Tds)" ~ "Total Dissolved Solids",
+    contaminant_name == "Unexploded Ordnance (Uxo)" ~ "Unexploded Ordnance",
+    contaminant_name == "Unknown Liq Waste" ~ "Liquid Waste Unknown",
+    contaminant_name == "Voc" ~ "Volatile Organic Compounds",
+    contaminant_name == "Vx" ~ "VX Nerve Agent",
+    contaminant_name == "Xylene (Mixed Isomers)" ~ "Xylene",
+    TRUE ~ contaminant_name
+    ))
+
+```
+
+```{r}
+
+unique_sites_tbl <- active_sites_cln %>% 
+  tabyl(contaminant_name, state)
+
+unique_sites_tbl <- tibble(unique_sites_tbl)
+```
+
+### Data Wrangling
+
+```{r, include=TRUE, message=FALSE, warning=FALSE}
+
+# counting the unique contaminants per state
+unique_contaminants_state <- active_sites_cln %>% 
+  group_by(state) %>% 
+  count(contaminant_name, sort = TRUE, name = "n.contaminants_state") %>% 
+  mutate(contaminant_name = str_to_title(contaminant_name)) %>% 
+  arrange(contaminant_name) %>% 
+  mutate(temp_key = paste(state, contaminant_name, sep = ":"))
+
+# counting and isolating the unique contaminants
+unique_contaminants <- active_sites_cln %>% 
+  count(contaminant_name, sort = TRUE, name = "n.contaminants") %>% 
+  mutate(contaminant_name = str_to_title(contaminant_name)) %>% 
+  bind_cols(pal_con) # colours added for the leaflet plots
+
+# counting and isolating the unique sites
+unique_sites <- active_sites_cln %>% 
+  count(site_name, sort = TRUE, name = "n.sites") %>% 
+  mutate(site_name = str_to_title(site_name)) %>% 
+  bind_cols(pal) # colours added for the leaflet plots
+
+```
+
+### Joining Counts
+
+```{r, include=TRUE, message=FALSE, warning=FALSE}
+
+# joining up the counts to the overall dataset
+active_sites_cln <- active_sites %>% 
+  mutate(fiscal_year = as.numeric(fiscal_year),
+         contaminant_name = str_to_title(contaminant_name),
+         site_name = str_to_title(site_name)) %>% 
+  left_join(unique_contaminants, by = "contaminant_name") %>% 
+  left_join(unique_sites, by = "site_name", suffix = c(".contaminants", ".sites")) %>% 
+  arrange(desc(n.contaminants))
+
+```
+
+```{r, include=TRUE, message=FALSE, warning=FALSE}
+
+# creating a key for the purposes of joining the unique_contaminants_state
+lonlat_state <- active_sites_cln %>% 
+  select(state, contaminant_name, longitude, latitude, site_name, fiscal_year, media, 
+         colour.contaminants) %>% 
+  mutate(temp_key = paste(state, contaminant_name, sep = ":")) %>% 
+  distinct_all()
+
+# using a left join to combine the data
+state_contaminants_temp <- unique_contaminants_state %>% 
+  right_join(lonlat_state, by = "temp_key") %>% 
+  filter(!is.na(longitude)) %>% 
+  distinct_all()
+# update the column names
+colnames(state_contaminants_temp) <- c("state", "contaminant_name", "n.contaminants_state",
+                                  "temp_key", "state_long", "contaminant", "longitude", "latitude",
+                                  "site_name", "fiscal_year", "media", "colour")
+
+```
+
+
+```{r}
+
+state_contaminants_fct <- state_contaminants_temp %>% 
+  filter(!is.na(contaminant_name)) %>% 
+  mutate(
+    state = fct_inorder(state),
+    contaminant_name = as_factor(contaminant_name)) %>% 
+  count(state, contaminant_name) %>% 
+  mutate(contaminant_name = tidytext::reorder_within(contaminant_name, n, state))
+
+statelo <- state_contaminants_fct %>% 
+  bind_log_odds(state, contaminant_name, n) %>% 
+  arrange(-log_odds_weighted) 
+
+unique_states <- unique(as.character(statelo$state), sort = TRUE) 
+
+unique_states <- tibble(unique_states)
+
+statelo_app <- statelo %>% 
+  mutate(contaminant_name = as.character(contaminant_name),
+         temp_key = as.character(contaminant_name),
+         state = as.character(state)) %>% 
+  separate(contaminant_name, sep = "___", into = c("contaminant", "state_abr"))
+
+statelo_app <- statelo_app %>% 
+  mutate(state = case_when(
+    state == "AK" ~ "Alaska",
+    state == "AL" ~ "Alabama",
+    state == "AR" ~ "Arkansas",
+    state == "AS" ~ "Samoa",
+    state == "AZ" ~ "Arizona",
+    state == "CA" ~ "California",
+    state == "CO" ~ "Colorado",
+    state == "CT" ~ "Connecticut",
+    state == "DC" ~ "District of Columbia",
+    state == "DE" ~ "Delaware",
+    state == "FL" ~ "Florida",
+    state == "GA" ~ "Georgia",
+    state == "GU" ~ "Guam",
+    state == "HI" ~ "Hawaii",
+    state == "IA" ~ "Iowa",
+    state == "ID" ~ "Idaho",
+    state == "IL" ~ "Illinois",
+    state == "IN" ~ "Indiana",
+    state == "KS" ~ "Kansas",
+    state == "KY" ~ "Kentucky",
+    state == "LA" ~ "Louisiana",
+    state == "MA" ~ "Maine",
+    state == "MI" ~ "Michigan",
+    state == "MN" ~ "Minnesota",
+    state == "MO" ~ "Missouri",
+    state == "MS" ~ "Mississippi",
+    state == "MT" ~ "Montana",
+    state == "NC" ~ "North Carolina",
+    state == "ND" ~ "North Dakota",
+    state == "NE" ~ "Nebraska",
+    state == "NH" ~ "New Hampshire",
+    state == "NJ" ~ "New Jersey",
+    state == "NM" ~ "New Mexico",
+    state == "NV" ~ "Nevada",
+    state == "NY" ~ "New York",
+    state == "OH" ~ "Ohio",
+    state == "OK" ~ "Oklahoma",
+    state == "OR" ~ "Oregon",
+    state == "PA" ~ "Pennsylvania",
+    state == "PR" ~ "Puerto Rico",
+    state == "RI" ~ "Rhode Island",
+    state == "SC" ~ "South Carolina",
+    state == "SD" ~ "South Dakota",
+    state == "TN" ~ "Tennessee",
+    state == "TX" ~ "Texas",
+    state == "UT" ~ "Utah",
+    state == "VA" ~ "Virginia",
+    state == "VT" ~ "Vermont",
+    state == "WA" ~ "Washington",
+    state == "WI" ~ "Wisconsin",
+    state == "WV" ~ "West Virginia",
+    state == "WY" ~ "Wyoming",
+    TRUE ~ state
+  )) 
+```
+
+```{r}
+
+# see what we can do
+
+statelo_join <- statelo_app %>% 
+  mutate(temp_key = paste(state_abr, contaminant, sep = ":"))
+
+state_contaminants <- state_contaminants_temp %>% 
+  left_join(statelo_join, by = "temp_key") %>% 
+  select(contaminant_name, n.contaminants_state, state.y, state_abr, 
+         longitude, latitude, site_name, media, n, log_odds_weighted, fiscal_year, colour) %>% 
+  filter(!is.na(contaminant_name)) %>% 
+  mutate(log_odds_weighted = replace_na(log_odds_weighted, 1))
+
+colnames(state_contaminants) <- c("contaminant_name", "n.contaminants_state", "state_name",
+                                  "state_abr", "longitude", "latitude", "site_name", "media",                                          "n.log_counts", "log_odds_weighted", "fiscal_year", "colour")
+
 
 ```
 
@@ -132,3 +590,4 @@ What we don't know
 -----
 
 Stay Tuned, I'll be documenting the complete process including dead ends
+

@@ -1,5 +1,5 @@
 ---
-title: "SuperFund Contaminated Sites"
+title: "EPA National Properties Superfund Sites"
 date: July 14th 2020
 output: 
     html_document:
@@ -33,13 +33,10 @@ Contaminant of concern data from Superfund decision documents issued in fiscal y
 
 -----
 
-I'm interested in putting together a shiny leaflet application based on the unique sites and the more prevalant contaminants.
-
------
-
 #### Data Cleaning
 
 ```{r, include=TRUE, message=FALSE, warning=FALSE}
+# required libraries
 library(tidyverse)
 library(lubridate)
 library(janitor)
@@ -47,17 +44,19 @@ library(tidylo)
 library(leaflet)
 library(leaflet.extras)
 
-#minor cleanup table name and col_names using the janitor package
+# minor cleanup table name and col_names using the janitor package
 active_sites <- EPA_current_NPL_201263 %>% 
   clean_names()
 
+# selecting relevant columns, adjusting the text cases and touching up the contaminant names
 active_sites_cln <- active_sites %>% 
+  filter(npl_status == "Currently on the Final NPL") %>% 
   select(site_name, state, latitude, longitude,
          fiscal_year, media, contaminant_name) %>% 
   mutate(site_name = str_to_title(site_name),
          contaminant_name = str_to_title(contaminant_name),
          state = as.factor(state)) %>% 
-  arrange(contaminant_name) %>% 
+  arrange(contaminant_name, media) %>% 
   mutate(contaminant_name = case_when(
     contaminant_name %in% c("C13-C18 Aliphatic Hydrocarbons",
                             "C19-C36 Aliphatic Hydrocarbons",
@@ -395,11 +394,12 @@ active_sites_cln <- active_sites %>%
 ```
 
 ```{r}
-
+# just quickly reviewing the counts per state, may need this table and will delete it if not
 unique_sites_tbl <- active_sites_cln %>% 
   tabyl(contaminant_name, state)
 
 unique_sites_tbl <- tibble(unique_sites_tbl)
+
 ```
 
 ### Data Wrangling
@@ -464,8 +464,12 @@ colnames(state_contaminants_temp) <- c("state", "contaminant_name", "n.contamina
 
 ```
 
+Without any actual statistics in the table, in the shortterm I am using the tidylo package to generate weighted log odds
+
 
 ```{r}
+
+# 
 
 state_contaminants_fct <- state_contaminants_temp %>% 
   filter(!is.na(contaminant_name)) %>% 
@@ -512,7 +516,9 @@ statelo_app <- statelo_app %>%
     state == "KS" ~ "Kansas",
     state == "KY" ~ "Kentucky",
     state == "LA" ~ "Louisiana",
-    state == "MA" ~ "Maine",
+    state == "MA" ~ "Massachusetts",
+    state == "MD" ~ "Maryland",
+    state == "ME" ~ "Maine",
     state == "MI" ~ "Michigan",
     state == "MN" ~ "Minnesota",
     state == "MO" ~ "Missouri",
@@ -538,6 +544,7 @@ statelo_app <- statelo_app %>%
     state == "TX" ~ "Texas",
     state == "UT" ~ "Utah",
     state == "VA" ~ "Virginia",
+    state == "VI" ~ "Virginia",
     state == "VT" ~ "Vermont",
     state == "WA" ~ "Washington",
     state == "WI" ~ "Wisconsin",
@@ -562,7 +569,8 @@ state_contaminants <- state_contaminants_temp %>%
   mutate(log_odds_weighted = replace_na(log_odds_weighted, 1))
 
 colnames(state_contaminants) <- c("contaminant_name", "n.contaminants_state", "state_name",
-                                  "state_abr", "longitude", "latitude", "site_name", "media",                                          "n.log_counts", "log_odds_weighted", "fiscal_year", "colour")
+                                  "state_abr", "longitude", "latitude", "site_name", "media",                                          
+                                  "n.log_counts", "log_odds_weighted", "fiscal_year", "colour")
 
 
 ```

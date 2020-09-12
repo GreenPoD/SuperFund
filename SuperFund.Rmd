@@ -19,7 +19,7 @@ load("myData.RData")
 
 ### Superfund Sites
 
-The EPA has been identifying and managing the cleanup of [Superfund](https://www.epa.gov/superfund) (highly contaminated sites) for 40 years. Prior to the EPA there was no regulatory body that could control polution.
+The EPA has been identifying and managing the cleanup of [Superfund](https://www.epa.gov/superfund/superfund-data-and-reports) (highly contaminated sites) for 40 years. Prior to the EPA there was no regulatory body that could control polution.
 
 Highly toxic locations where manufacturing by-products have been carelessly introduced into the environment due to inadequate regulations, greed, or disregard for the generational damages to flora, fauna, ourselves and the earths viability to support life. It sickens me to think that we have poisoned the natural world to enrich a small portion of the population. I think of the suffering of all life and the wasteland humanity seems to have embraced in the name of progress since the dark ages.
 
@@ -551,7 +551,7 @@ statelo_app <- statelo_app %>%
     state == "WV" ~ "West Virginia",
     state == "WY" ~ "Wyoming",
     TRUE ~ state
-  )) 
+  ))  
 ```
 
 ```{r}
@@ -566,11 +566,20 @@ state_contaminants <- state_contaminants_temp %>%
   select(contaminant_name, n.contaminants_state, state.y, state_abr, 
          longitude, latitude, site_name, media, n, log_odds_weighted, fiscal_year, colour) %>% 
   filter(!is.na(contaminant_name)) %>% 
-  mutate(log_odds_weighted = replace_na(log_odds_weighted, 1))
+  mutate(log_odds_weighted = replace_na(log_odds_weighted, 1),
+         log_odds_weighted = round(log_odds_weighted, 2)) %>%
+  mutate(media = case_when(
+    media == "Groundwater" ~ "Ground Water",
+    media == "Buildings/Structures" ~ "Buildings Structures",
+    TRUE ~ media)) %>% 
+  mutate(pubclink = paste0("<b><a href = 'https://pubchem.ncbi.nlm.nih.gov/#query=", contaminant_name,"'>"),
+         sitelink = paste0("<b><a href = 'https://search.epa.gov/epasearch/?querytext=", site_name,
+                           "&areaname=&areacontacts=&areasearchurl=&typeofsearch=epa&result_template=2col.ftl#/'>"))
 
 colnames(state_contaminants) <- c("contaminant_name", "n.contaminants_state", "state_name",
-                                  "state_abr", "longitude", "latitude", "site_name", "media",                                          
-                                  "n.log_counts", "log_odds_weighted", "fiscal_year", "colour")
+                                  "state_abr", "longitude", "latitude", "site_name", "media",              
+                                  "n.log_counts", "log_odds_weighted", "fiscal_year", "colour", 
+                                  "pubclink", "sitelink")
 
 
 ```

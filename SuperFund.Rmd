@@ -270,6 +270,7 @@ active_sites_cln <- active_sites %>%
     str_detect(contaminant_name, "^Thorium") ~ "Thorium",
     str_detect(contaminant_name, "^Uranium") ~ "Uranium",
     str_detect(contaminant_name, "^Vanadium") ~"Vanadium",
+    contaminant_name == "Alpha-Hexachlorocyclohexane" ~ "Lindane",
     contaminant_name == "1,2-Dihydroacenaphthylene" ~ "Acenaphthylene",
     contaminant_name == "2-Aminopyridine" ~ "Aminopyridine",
     contaminant_name == "(2z)-2-Butenedioic Acid" ~ "Butenedioic Acid",

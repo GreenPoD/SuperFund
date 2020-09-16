@@ -12,16 +12,20 @@ ggrpal <- c("#6B0077", "#713A8E", "#765CA5", "#7B7ABB",
             "#8096CF", "#86B0E1", "#8DC9EF", "#97DFFB",
             "#A4F1FF", "#B3FDFF", "#6B0077", "#713A8E",
             "#765CA5", "#7B7ABB", "#8096CF", "#86B0E1",
+            "#8DC9EF", "#97DFFB", "#765CA5", "#7B7ABB",
+            "#8096CF", "#86B0E1", "#8DC9EF", "#97DFFB",
+            "#A4F1FF", "#B3FDFF", "#6B0077", "#713A8E",
+            "#765CA5", "#7B7ABB", "#8096CF", "#86B0E1",
             "#8DC9EF", "#97DFFB")
 
 ui <- fluidPage(theme = shinytheme(theme = "lumen"),
                     
         tabsetPanel(
           # leaflet map user interface
-          tabPanel("Map", leafletOutput('map', width = 1175, height = 839),
+          tabPanel("Map", leafletOutput('map', width = 1215, height = 839),
             absolutePanel(top = 30, right = 10,
               draggable = TRUE,
-              titlePanel(h3("EPA Superfund Properties")),
+              titlePanel(h3("EPA National Superfund Properties")),
               sliderInput("range", "Fiscal Year Property Added to NPL", 
                           min(state_contaminants$fiscal_year),
                           max(state_contaminants$fiscal_year),
@@ -29,12 +33,12 @@ ui <- fluidPage(theme = shinytheme(theme = "lumen"),
               selectizeInput('media_type', label = NULL,  
                           choices = NULL,
                           multiple = TRUE,
-                          options = list(placeholder = "Select Media Type",
+                          options = list(placeholder = "Media Type (Tab Once Selected)",
                           onInitialize = I('function() { this.setValue(""); }'))),
               selectizeInput('contaminant_type', label = NULL, 
                           choices = unique(state_contaminants$contaminant_name), 
                           multiple = TRUE,
-                          options = list(placeholder = "Select Contaminant",
+                          options = list(placeholder = "Contaminant Name (Tab Once Selected)",
                           onInitialize = I('function() { this.setValue(""); }')))),
               absolutePanel(bottom = 5, left = 5,
                           draggable = TRUE,
@@ -55,46 +59,61 @@ ui <- fluidPage(theme = shinytheme(theme = "lumen"),
                           highchartOutput('log_odds'))),
           tabPanel("Density Plot",
             plotOutput('plot', width = 1000, height = 800)),
-              # absolutePanel(bottom = 5, left = 5,
-              #               draggable = TRUE,
-              #               tags$text("Dirichlet Distribution"),
-              #               tags$a("Wikipedia Page", href = "https://en.wikipedia.org/wiki/Dirichlet_distribution"),
-              #               tags$text("Plot::"),
-              #               tags$a("ggridges", href = "https://github.com/wilkelab/ggridges"),
-              #               class = 'card'),
+
           tabPanel("Filtered Table",
             DTOutput('table')),
-              # absolutePanel(bottom = 5, left = 5,
-              #               draggable = TRUE,
-              #               tags$text("Datatable"),
-              #               tags$a("DT", href = "https://rstudio.github.io/DT/"),
-              #               class = 'card')
-          tabPanel("Information",
+            
+          tabPanel("Info",
               textOutput("EPA Cleanup Efforts", inline = TRUE),
                 br(),
-                h4("National Superfund Properties List"),
-                p("The Environmental Protection Agency has enjoyed many years of progress against the",
-                  "historical damage to our natural environment from unregulated, unconscionable abuse",
-                  "and polution.",
+                h5(tags$a("National Superfund Properties List", href = "https://www.epa.gov/superfund/superfund-data-and-reports")),
+                p("The Environmental Protection Agency has enjoyed many years of progress controlling and", 
+                  "correcting historical damage to the natural environment from unregulated, unconscionable",
+                  "abuse, laziness, ignorance and lasting pollution.",
                   "All of the damage has been done in the name of profits and progress, leaving the voiceless",
                   "and vulnerable to suffer for generations."),
-                br(),
-                p("I reflect back to the accounts of the health of the forests when New York was young;",
-                  "springs flowing as the ancient trees lifted the water table with their roots. The surrounding",
-                  "lakes that were poisoned and eventually filled in by the manufacturing filth that followed" ,
-                  "the colonizers wherever they travelled.",
-                  "The Indigenous peoples must have been shocked by our complete disregard for the natural world."),
-                br(),
-                p("Begin by selecting the media category",
-                  "Layer as many contaminants as you wish",
-                  "The highcharter widget will update based on your selections displaying the frequency or pervasiveness",
-                  "of a contaminant.",
-                  "Popups include links to the site and contaminant information",
-                  "Refresh the page if you get stuck",
-                  "The density plot is an extension of the frequency of a contaminant",
-                  "The datatable is organized chronologically")
-                    )                    
-           )
+                p("The National Properties List includes sites that are being monitored to ensure that the",
+                  "construction or control measures in place are meeting their environmental requirements.",
+                  "I invite you to take the time to review a few sites of interest and the great work",
+                  "involved in minimizing the impact of the pollutants."),
+                p("Diminishing the regulatory powers of the Environmental Protection Agency will invite",
+                  "polluters to degrade the progress that has been made since 1970, deferring the health effects,",
+                  "complicated and costly cleanups to future generations."),
+                p("Contaminants need to be controlled or captured prior to their release into the environment.",
+                  "Investments through tax incentives or grants would be much cheaper than the medical and cleanup",
+                  "costs; not to mention the natural worlds potential to support human life."),
+                p("Reflect back to the accounts of the health and abundance of the natural world when New York was",
+                  "young; springs flowing in the nearby forests as the ancient trees lifted the water table with their",
+                  "roots. The surrounding lakes that were poisoned and eventually filled in by the garbage and manufacturing",
+                  "waste that followed. The earth needs to be quickly restored to its once previous state, it was destroyed by a",
+                  "few generations and can be revitalized by the current stewards and subsequent generations."), br(),
+                h5(tags$a("Interactive Leaflet Map", href = "https://rstudio.github.io/leaflet/")),
+                p("Select one or more media categories; relevant contaminants will be available directly below.",
+                  "Layer as many contaminants as you wish (tab to select), circle markers will begin to appear based on the", 
+                  "filtered data. Zoom to an area of interest, selecting a circle marker will display the site and contaminant",
+                  " name. Follow the links to National Library of Medicine and EPA Superfund Properties Database.",
+                  "The highcharter widget displays the weighted log odds; frequency or pervasiveness of a contaminant",
+                  "in each state weighted by the number of contaminated sites."),
+                  p("Refresh the shiny application if you get stuck, remember tab to complete your selections"), br(),
+                h5(tags$a("Density Plot", href = "https://github.com/wilkelab/ggridges")), 
+                 p("The geometry from the ggridges package expands on the previous", 
+                  tags$a("highcharter", href = "https://github.com/jbkunst/highcharter"), 
+                  "bar plot showing the frequency or pervasiveness of a contaminant across each state. The",
+                  tags$a("Tidylo", href = "https://github.com/juliasilge/tidylo/"),
+                  "package was used to generate this Bayesian prior using", 
+                  tags$a("Dirichlet's Distribution", href = "https://en.wikipedia.org/wiki/Dirichlet_distribution"),"."), br(),
+                h5(tags$a("Data Table", href = "https://rstudio.github.io/DT/")),
+                p("Displays the filtered contaminants from the year added to the National Superfund Properties List"), br(),
+                h5(tags$a("Environmental Stewardship", href = "https://en.wikipedia.org/wiki/Environmental_stewardship")),
+                 p("The future or our species will depend on how quickly we adapt to our reality by",
+                   "transitioning to a", 
+                   tags$a("circular economy", href = "https://www.canada.ca/en/services/environment/conservation/sustainability/circular-economy.html"),
+                   ". Methods, institutions, products, resources generated by dirty",
+                   "manufacturing will be forgotten and history will highlight our current age as a time when our species avoided extinction."), br(),
+                h5(tags$a("Superfund GITHUB Repository", href = "https://github.com/GreenPoD/SuperFund"))
+                   
+        )                    
+    )
 )
 
 server <- function(input, output, session) {
@@ -173,19 +192,19 @@ server <- function(input, output, session) {
             filter(contaminant_name %in% filteredSubsetData()$contaminant_name) %>% 
             add_count(contaminant_name) %>% 
             filter(n > 2) %>% 
+            arrange(desc(n.contaminants_state)) %>% 
             ggplot(aes(x = log_odds_weighted, y = contaminant_name,
                        fill = contaminant_name)) +
             geom_density_ridges(alpha = 0.9, scale = 2, show.legend = FALSE) +
             scale_fill_manual(values = ggrpal) +
-            theme_minimal() +
-            theme(panel.grid = element_blank(),
-                  axis.text.x = element_blank(),
-                  plot.title = element_text(size = 16),
-                  plot.subtitle = element_text(size = 14)) +
-            labs(title = "Contaminant Frequency",
-                 subtitle = NULL,
+            theme_ridges() +
+            theme(panel.grid = element_line(color = "SteelBlue", lineend = "round"),
+                  plot.title = element_text(size = 14),
+                  plot.subtitle = element_text(size = 15)) +
+            labs(title = NULL,
+                 subtitle = "Contaminant Prevalance in EPA National Superfund Properties",
                  y = NULL,
-                 x = "Weighted Log Odds using Dirichlet's prior"))
+                 x = "Weighted Log Odds using Dirichlet Distribution n = count(state, contaminants)"))
         
     })
     
@@ -203,11 +222,11 @@ server <- function(input, output, session) {
         
         hchart(hcData(), "bar", hcaes(contaminant_name, log_odds_weighted)) %>% 
             hc_colors(colors = "SteelBlue") %>% 
-            hc_title(text = paste("Contaminant Frequency by State")) %>% 
+            hc_title(text = paste("Contaminant Prevalence Superfund Sites")) %>% 
             hc_xAxis(title = list(text = ""), gridLineWidth = 0, minorGridLineWidth = 0) %>% 
             hc_yAxis(title = list(text = "Weighted Log Odds"), gridLineWidth = 0, minorGridLineWidth = 0) %>%
             hc_legend(enabled = FALSE) %>% 
-            hc_tooltip(pointFormat = "Contaminants: <b>{point.y}</b>") %>% 
+            hc_tooltip(pointFormat = "Value: <b>{point.y}</b>") %>% 
             hc_plotOptions(series = list(cursor = "default")) %>% 
             hc_add_theme(hc_theme_smpl()) %>% 
             hc_chart(backgroundColor = "transparent")

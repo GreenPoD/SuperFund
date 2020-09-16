@@ -8,6 +8,7 @@ library(ggplot2)
 library(ggridges)
 library(highcharter)
 
+
 ggrpal <- c("#6B0077", "#713A8E", "#765CA5", "#7B7ABB",
             "#8096CF", "#86B0E1", "#8DC9EF", "#97DFFB",
             "#A4F1FF", "#B3FDFF", "#6B0077", "#713A8E",
@@ -220,7 +221,7 @@ server <- function(input, output, session) {
            
     output$log_odds <- renderHighchart({
         
-        hchart(hcData(), "bar", hcaes(contaminant_name, log_odds_weighted)) %>% 
+        hchart(filteredSubsetData(), "bar", hcaes(contaminant_name, log_odds_weighted)) %>% 
             hc_colors(colors = "SteelBlue") %>% 
             hc_title(text = paste("Contaminant Prevalence Superfund Sites")) %>% 
             hc_xAxis(title = list(text = ""), gridLineWidth = 0, minorGridLineWidth = 0) %>% 

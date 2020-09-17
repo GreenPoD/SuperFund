@@ -8,6 +8,8 @@ library(ggplot2)
 library(ggridges)
 library(highcharter)
 
+state_contaminants <- read.csv("state_contaminants.csv")
+
 
 ggrpal <- c("#6B0077", "#713A8E", "#765CA5", "#7B7ABB",
             "#8096CF", "#86B0E1", "#8DC9EF", "#97DFFB",
@@ -19,29 +21,29 @@ ggrpal <- c("#6B0077", "#713A8E", "#765CA5", "#7B7ABB",
             "#765CA5", "#7B7ABB", "#8096CF", "#86B0E1",
             "#8DC9EF", "#97DFFB")
 
-ui <- fluidPage(theme = shinytheme(theme = "lumen"),
+ui <- bootstrapPage(theme = shinytheme(theme = "lumen"),
                     
         tabsetPanel(
           # leaflet map user interface
-          tabPanel("Map", leafletOutput('map', width = 1215, height = 839),
+          tabPanel("Map", leafletOutput('map', height = 825),
             absolutePanel(top = 30, right = 10,
               draggable = TRUE,
-              titlePanel(h3("EPA National Superfund Properties")),
-              sliderInput("range", "Fiscal Year Property Added to NPL", 
+              titlePanel(h3("EPA Superfund Properties")),
+              sliderInput("range", "Year Added to NPL", 
                           min(state_contaminants$fiscal_year),
                           max(state_contaminants$fiscal_year),
                           value = range(state_contaminants$fiscal_year), step = 1),
               selectizeInput('media_type', label = NULL,  
                           choices = NULL,
                           multiple = TRUE,
-                          options = list(placeholder = "Media Type (Tab Once Selected)",
+                          options = list(placeholder = "Media Types  ~  Tab Select",
                           onInitialize = I('function() { this.setValue(""); }'))),
               selectizeInput('contaminant_type', label = NULL, 
                           choices = unique(state_contaminants$contaminant_name), 
                           multiple = TRUE,
-                          options = list(placeholder = "Contaminant Name (Tab Once Selected)",
+                          options = list(placeholder = "Contaminants  ~  Tab Select",
                           onInitialize = I('function() { this.setValue(""); }')))),
-              absolutePanel(bottom = 5, left = 5,
+              absolutePanel(bottom = 10, left = 5,
                           draggable = TRUE,
                           tags$text("Data::"),
                           tags$a("EPA Superfund", href = "https://www.epa.gov/superfund/search-superfund-sites-where-you-live"),
@@ -54,18 +56,19 @@ ui <- fluidPage(theme = shinytheme(theme = "lumen"),
                           tags$text("Chart::"),
                           tags$a("Highcharter", href = "https://github.com/jbkunst/highcharter"),
                           class = 'card'),
-              absolutePanel(top = 200, left = 20, 
+              absolutePanel(top = 220, left = 20, 
                           width = 300, height = 600,
                           draggable = TRUE,
                           highchartOutput('log_odds'))),
           tabPanel("Density Plot",
-            plotOutput('plot', width = 1000, height = 800)),
+            plotOutput('plot', height = 800, width = 1200)),
 
           tabPanel("Filtered Table",
             DTOutput('table')),
             
           tabPanel("Info",
-              textOutput("EPA Cleanup Efforts", inline = TRUE),
+            absolutePanel(top = 40, left = 20, height = 960,
+              textOutput("EPA Cleanup Efforts", inline = FALSE),
                 br(),
                 h5(tags$a("National Superfund Properties List", href = "https://www.epa.gov/superfund/superfund-data-and-reports")),
                 p("The Environmental Protection Agency has enjoyed many years of progress controlling and", 
@@ -81,7 +84,7 @@ ui <- fluidPage(theme = shinytheme(theme = "lumen"),
                   "polluters to degrade the progress that has been made since 1970, deferring the health effects,",
                   "complicated and costly cleanups to future generations."),
                 p("Contaminants need to be controlled or captured prior to their release into the environment.",
-                  "Investments through tax incentives or grants would be much cheaper than the medical and cleanup",
+                  "Investments through tax incentives or grants would be much cheaper than! medical and cleanup",
                   "costs; not to mention the natural worlds potential to support human life."),
                 p("Reflect back to the accounts of the health and abundance of the natural world when New York was",
                   "young; springs flowing in the nearby forests as the ancient trees lifted the water table with their",
@@ -93,7 +96,9 @@ ui <- fluidPage(theme = shinytheme(theme = "lumen"),
                   "Layer as many contaminants as you wish (tab to select), circle markers will begin to appear based on the", 
                   "filtered data. Zoom to an area of interest, selecting a circle marker will display the site and contaminant",
                   " name. Follow the links to National Library of Medicine and EPA Superfund Properties Database.",
-                  "The highcharter widget displays the weighted log odds; frequency or pervasiveness of a contaminant",
+                  "The highcharter barplot (Used with permission under the",
+                  tags$a("Creative Commons Licence", href = "https://mautic.highsoft.com/r/4b0d3077ad7001951f2e314db?ct=YTo1OntzOjY6InNvdXJjZSI7YToyOntpOjA7czo0OiJmb3JtIjtpOjE7aToxMDt9czo1OiJlbWFpbCI7aToxMDtzOjQ6InN0YXQiO3M6MjI6IjVmNjE5OWVlMzkxN2U5ODk2NDUyNzEiO3M6NDoibGVhZCI7aToyMDcxMDY7czo3OiJjaGFubmVsIjthOjE6e3M6NToiZW1haWwiO2k6MTA7fX0%3D&"), 
+                  ") displays the weighted log odds; frequency or pervasiveness of a contaminant",
                   "in each state weighted by the number of contaminated sites."),
                   p("Refresh the shiny application if you get stuck, remember tab to complete your selections"), br(),
                 h5(tags$a("Density Plot", href = "https://github.com/wilkelab/ggridges")), 
@@ -112,7 +117,7 @@ ui <- fluidPage(theme = shinytheme(theme = "lumen"),
                    ". Methods, institutions, products, resources generated by dirty",
                    "manufacturing will be forgotten and history will highlight our current age as a time when our species avoided extinction."), br(),
                 h5(tags$a("Superfund GITHUB Repository", href = "https://github.com/GreenPoD/SuperFund"))
-                   
+            )     
         )                    
     )
 )
@@ -123,7 +128,7 @@ server <- function(input, output, session) {
                       choices = unique(state_contaminants$media))
     # pushing the selections through reactive functions
     mediaData <- reactive({
-        state_contaminants %>%
+        state_contaminants <- state_contaminants %>%
             filter(media %in% input$media_type)
     }) 
     # filtering the timespan slider
@@ -221,7 +226,7 @@ server <- function(input, output, session) {
            
     output$log_odds <- renderHighchart({
         
-        hchart(filteredSubsetData(), "bar", hcaes(contaminant_name, log_odds_weighted)) %>% 
+        hchart(hcData(), "bar", hcaes(contaminant_name, log_odds_weighted)) %>% 
             hc_colors(colors = "SteelBlue") %>% 
             hc_title(text = paste("Contaminant Prevalence Superfund Sites")) %>% 
             hc_xAxis(title = list(text = ""), gridLineWidth = 0, minorGridLineWidth = 0) %>% 

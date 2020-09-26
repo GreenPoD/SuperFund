@@ -17,20 +17,11 @@ knitr::opts_chunk$set(echo = TRUE)
 load("myData.RData")
 ```
 
-### Superfund Sites
+### Superfund Data
 
 The EPA has been identifying and managing the cleanup of [Superfund](https://www.epa.gov/superfund/superfund-data-and-reports) (highly contaminated sites) for 40 years. Prior to the EPA there was no regulatory body that could control polution.
 
-Highly toxic locations where manufacturing by-products have been carelessly introduced into the environment due to inadequate regulations, greed, or disregard for the generational damages to flora, fauna, ourselves and the earths viability to support life. It sickens me to think that we have poisoned the natural world to enrich a small portion of the population. I think of the suffering of all life and the wasteland humanity seems to have embraced in the name of progress since the dark ages.
-
-There are many datasets available on the EPA website, I've chosen to review the active list of National Properties or NPL. [Superfund Data and Reports](https://www.epa.gov/superfund/superfund-data-and-reports)
-
------
-
-The EPA has been identifying and managing the cleanup of [Superfund](https://www.epa.gov/superfund) (highly contaminated sites) for 40 years.
-
-Contaminant of concern data from Superfund decision documents issued in fiscal years 1982-2017. Includes sites 1) final or deleted on the National Priorities List (NPL); and 2) sites with a Superfund Alternative Approach (SAA) Agreement in place. The only sites included that are 1) not on the NPL; 2) proposed for NPL; or 3) removed from proposed NPL, are those with an SAA Agreement in place.
-
+The data used for this project was embedded into the 
 -----
 
 #### Data Cleaning
@@ -573,9 +564,9 @@ state_contaminants <- state_contaminants_temp %>%
     media == "Groundwater" ~ "Ground Water",
     media == "Buildings/Structures" ~ "Buildings Structures",
     TRUE ~ media)) %>% 
-  mutate(pubclink = paste0("<b><a href = 'https://pubchem.ncbi.nlm.nih.gov/#query=", contaminant_name,"'>"),
+  mutate(pubclink = paste0("<b><a href = 'https://pubchem.ncbi.nlm.nih.gov/#query=", contaminant_name,"' target = \"_blank\">"),
          sitelink = paste0("<b><a href = 'https://search.epa.gov/epasearch/?querytext=", site_name,
-                           "&areaname=&areacontacts=&areasearchurl=&typeofsearch=epa&result_template=2col.ftl#/'>"))
+                           "&areaname=&areacontacts=&areasearchurl=&typeofsearch=epa&result_template=2col.ftl#/' target = \"_blank\">"))
 
 colnames(state_contaminants) <- c("contaminant_name", "n.contaminants_state", "state_name",
                                   "state_abr", "longitude", "latitude", "site_name", "media",              

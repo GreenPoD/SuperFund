@@ -1,6 +1,6 @@
 # EPA Superfund National Properties
 
-### Shiny App::[EPA_Superfund_Sites](https://greenpod303.shinyapps.io/EPA_Superfund_Sites/)
+### Shiny App::[EPA_Superfund_Sites](https://greenpod303.shinyapps.io/EPA_Superfund/)
 
 [National Superfund Properties List](https://www.epa.gov/superfund/superfund-data-and-reports)
 The Environmental Protection Agency has enjoyed many years of progress controlling and correcting historical damage to the natural environment from unregulated, unconscionable abuse, laziness, ignorance and lasting pollution. All of the damage has been done in the name of profits and progress, leaving the voiceless and vulnerable to suffer for generations.
